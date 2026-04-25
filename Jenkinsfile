@@ -10,13 +10,20 @@ pipeline {
 			}
     }
 
-	stage('RunSCAAnalysisUsingSnyk') {
-            steps {		
-				withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
-					sh 'mvn snyk:test -fn'
-				}
-			}
+   stage('RunSCAAnalysisUsingSnyk') {
+    steps {
+        withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
+            script {
+                def status = sh(script: 'mvn snyk:test', returnStatus: true)
+
+                if (status != 0) {
+                    echo "Snyk found vulnerabilities ⚠️"
+                    currentBuild.result = 'UNSTABLE'   // 👈 key line
+                }
+            }
+        }
     }
+   }
 
 	stage('Build') { 
             steps { 
