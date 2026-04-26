@@ -29,8 +29,8 @@ sh 'mvn clean verify sonar:sonar -Dsonar.projectKey=asgbuggywebapp000 -Dsonar.or
 
     stage('Build & Push') {
       steps {
-        script {
-          def app = docker.build("asg-agent1")
+        script { 
+          def app = docker.build("jenkins-app-repo")
           docker.withRegistry('https://004070549669.dkr.ecr.us-west-1.amazonaws.com', 'ecr:us-west-1:aws-credentials') {
             app.push("latest")
           }
