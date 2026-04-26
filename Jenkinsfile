@@ -3,17 +3,33 @@ pipeline {
 
   environment {
     AWS_REGION = "us-west-1"
-    CLUSTER_NAME = "my-eks-cluster"
   }
 
   stages {
 
+    // 🔒 Block non-feature branches
+    stage('Check Branch') {
+      when {
+        not {
+          expression { env.BRANCH_NAME?.startsWith('feature/') }
+        }
+      }
+      steps {
+        error "❌ This pipeline runs ONLY on feature branches"
+      }
+    }
+
+    // 🔥 Run CI on both agents
     stage('CI on Both Agents') {
+      when {
+        expression { env.BRANCH_NAME?.startsWith('feature/') }
+      }
+
       parallel {
 
-        // =========================
+        // =====================
         // Agent-1
-        // =========================
+        // =====================
         stage('Agent-1 CI') {
           agent { label 'agent-1' }
 
@@ -56,12 +72,13 @@ pipeline {
                 }
               }
             }
+
           }
         }
 
-        // =========================
+        // =====================
         // Agent-2
-        // =========================
+        // =====================
         stage('Agent-2 CI') {
           agent { label 'agent-2' }
 
@@ -104,48 +121,10 @@ pipeline {
                 }
               }
             }
+
           }
         }
 
-      }
-    }
-
-    // =========================
-    // EKS Provision ONLY on Agent-1
-    // =========================
-    stage('EKS Provision & Deploy (Agent-1)') {
-      agent { label 'agent-1' }
-
-      stages {
-
-        stage('Provision EKS') {
-          steps {
-            sh '''
-            cd eks-terraform
-            terraform init
-            terraform apply -auto-approve
-            '''
-          }
-        }
-
-        stage('Update kubeconfig') {
-          steps {
-            sh '''
-            aws eks update-kubeconfig \
-              --region $AWS_REGION \
-              --name $CLUSTER_NAME
-            '''
-          }
-        }
-
-        stage('Deploy App') {
-          steps {
-            sh '''
-            kubectl apply -f k8s/deployment.yaml
-            kubectl apply -f k8s/service.yaml
-            '''
-          }
-        }
       }
     }
 
