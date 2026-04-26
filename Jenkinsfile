@@ -7,29 +7,26 @@ pipeline {
 
   stages {
 
-    // 🔒 Block non-feature branches
+    // 🔒 Block everything except 'feature'
     stage('Check Branch') {
       when {
         not {
-          expression { env.BRANCH_NAME?.startsWith('feature/') }
+          expression { env.BRANCH_NAME == 'feature' }
         }
       }
       steps {
-        error "❌ This pipeline runs ONLY on feature branches"
+        error "❌ This pipeline runs ONLY on 'feature' branch"
       }
     }
 
     // 🔥 Run CI on both agents
     stage('CI on Both Agents') {
       when {
-        expression { env.BRANCH_NAME?.startsWith('feature/') }
+        expression { env.BRANCH_NAME == 'feature' }
       }
 
       parallel {
 
-        // =====================
-        // Agent-1
-        // =====================
         stage('Agent-1 CI') {
           agent { label 'agent-1' }
 
@@ -52,7 +49,6 @@ pipeline {
                 withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
                   script {
                     def status = sh(script: 'mvn snyk:test', returnStatus: true)
-
                     if (status != 0) {
                       echo "Snyk found vulnerabilities ⚠️"
                       currentBuild.result = 'UNSTABLE'
@@ -76,9 +72,6 @@ pipeline {
           }
         }
 
-        // =====================
-        // Agent-2
-        // =====================
         stage('Agent-2 CI') {
           agent { label 'agent-2' }
 
@@ -101,7 +94,6 @@ pipeline {
                 withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
                   script {
                     def status = sh(script: 'mvn snyk:test', returnStatus: true)
-
                     if (status != 0) {
                       echo "Snyk found vulnerabilities ⚠️"
                       currentBuild.result = 'UNSTABLE'
