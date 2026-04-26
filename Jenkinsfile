@@ -4,7 +4,6 @@ pipeline {
   environment {
     AWS_REGION = "us-west-1"
   }
-
   stages {
 
     // 🔒 Block everything except 'feature'
