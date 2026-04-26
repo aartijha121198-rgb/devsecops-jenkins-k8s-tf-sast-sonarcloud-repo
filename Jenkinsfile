@@ -7,100 +7,58 @@ pipeline {
 
   stages {
 
-    stage('CI on Both Agents') {
+    stage('CI on Agents') {
 
-      parallel {
-
-        stage('Agent-1 CI') {
-          agent { label 'agent-1' }
-
-          stages {
-
-            stage('Sonar') {
-              steps {
-                sh '''
-                mvn clean verify sonar:sonar \
-                -Dsonar.projectKey=asgbuggywebapp \
-                -Dsonar.organization=asgbuggywebapp \
-                -Dsonar.host.url=https://sonarcloud.io \
-                -Dsonar.token=94d0217a5309dac0adc2fd40621c9858cf495261
-                '''
-              }
-            }
-
-            stage('Snyk') {
-              steps {
-                withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
-                  script {
-                    def status = sh(script: 'mvn snyk:test', returnStatus: true)
-                    if (status != 0) {
-                      echo "Snyk found vulnerabilities ⚠️"
-                      currentBuild.result = 'UNSTABLE'
-                    }
-                  }
-                }
-              }
-            }
-
-            stage('Build & Push') {
-              steps {
-                script {
-                  def app = docker.build("asg-agent1")
-                  docker.withRegistry('https://004070549669.dkr.ecr.us-west-1.amazonaws.com', 'ecr:us-west-1:aws-credentials') {
-                    app.push("latest")
-                  }
-                }
-              }
-            }
-
+      matrix {
+        axes {
+          axis {
+            name 'AGENT_LABEL'
+            values 'agent-1'
           }
         }
 
-        stage('Agent-2 CI') {
-          agent { label 'agent-2' }
+        agent { label "${AGENT_LABEL}" }
 
-          stages {
+        stages {
 
-            stage('Sonar') {
-              steps {
-                sh '''
-                mvn clean verify sonar:sonar \
-                -Dsonar.projectKey=asgbuggywebapp \
-                -Dsonar.organization=asgbuggywebapp \
-                -Dsonar.host.url=https://sonarcloud.io \
-                -Dsonar.token=94d0217a5309dac0adc2fd40621c9858cf495261
-                '''
-              }
+          stage('Sonar') {
+            steps {
+              sh '''
+              mvn clean verify sonar:sonar \
+              -Dsonar.projectKey=asgbuggywebapp \
+              -Dsonar.organization=asgbuggywebapp \
+              -Dsonar.host.url=https://sonarcloud.io \
+              -Dsonar.token=94d0217a5309dac0adc2fd40621c9858cf495261
+              '''
             }
-
-            stage('Snyk') {
-              steps {
-                withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
-                  script {
-                    def status = sh(script: 'mvn snyk:test', returnStatus: true)
-                    if (status != 0) {
-                      echo "Snyk found vulnerabilities ⚠️"
-                      currentBuild.result = 'UNSTABLE'
-                    }
-                  }
-                }
-              }
-            }
-
-            stage('Build & Push') {
-              steps {
-                script {
-                  def app = docker.build("asg-agent2")
-                  docker.withRegistry('https://004070549669.dkr.ecr.us-west-1.amazonaws.com', 'ecr:us-west-1:aws-credentials') {
-                    app.push("latest")
-                  }
-                }
-              }
-            }
-
           }
-        }
 
+          stage('Snyk') {
+            steps {
+              withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
+                script {
+                  def status = sh(script: 'mvn snyk:test', returnStatus: true)
+                  if (status != 0) {
+                    echo "Snyk found vulnerabilities ⚠️"
+                    currentBuild.result = 'UNSTABLE'
+                  }
+                }
+              }
+            }
+          }
+
+          stage('Build & Push') {
+            steps {
+              script {
+                def app = docker.build("asg-${AGENT_LABEL}")
+                docker.withRegistry('https://004070549669.dkr.ecr.us-west-1.amazonaws.com', 'ecr:us-west-1:aws-credentials') {
+                  app.push("latest")
+                }
+              }
+            }
+          }
+
+        }
       }
     }
 
