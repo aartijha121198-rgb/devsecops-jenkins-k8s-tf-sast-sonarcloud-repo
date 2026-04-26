@@ -4,25 +4,10 @@ pipeline {
   environment {
     AWS_REGION = "us-west-1"
   }
+
   stages {
 
-    // 🔒 Block everything except 'feature'
-    stage('Check Branch') {
-      when {
-        not {
-          expression { env.BRANCH_NAME == 'feature' }
-        }
-      }
-      steps {
-        error "❌ This pipeline runs ONLY on 'feature' branch"
-      }
-    }
-
-    // 🔥 Run CI on both agents
     stage('CI on Both Agents') {
-      when {
-        expression { env.BRANCH_NAME == 'feature' }
-      }
 
       parallel {
 
