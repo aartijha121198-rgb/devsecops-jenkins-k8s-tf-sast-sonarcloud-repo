@@ -13,7 +13,7 @@ pipeline {
         axes {
           axis {
             name 'AGENT_LABEL'
-            values 'agent-1'
+            values 'agent-2'
           }
         }
 
