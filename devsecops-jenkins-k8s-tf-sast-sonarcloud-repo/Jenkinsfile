@@ -68,12 +68,12 @@ pipeline {
 
       agent { label 'agent-2' }
 
-      when {
-        allOf {
-          branch 'feature'
-          changeset "**/terraform-eks/**"
-        }
-      }
+      // when {
+      //   allOf {
+      //     branch 'feature'
+      //     changeset "**/terraform-eks/**"
+      //   }
+      // }
 
       steps {
         withCredentials([[
