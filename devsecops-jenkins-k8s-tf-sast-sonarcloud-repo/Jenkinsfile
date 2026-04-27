@@ -72,7 +72,9 @@ pipeline {
           credentialsId: 'aws-credentials'
         ]]) {
 
-          dir('terraform-eks/EKS-creation') {
+          dir('devsecops-jenkins-k8s-tf-sast-sonarcloud-repo') {
+
+            dir('terraform-eks/EKS-creation') { {
 
             script {
 
@@ -109,5 +111,7 @@ pipeline {
       }
     }
 
+  }
+}
   }
 }
