@@ -1,12 +1,12 @@
 # Terraform
-.terraform/
+**/.terraform/*
 *.tfstate
 *.tfstate.*
 .terraform.lock.hcl
 
+# Ignore provider binaries
+**/terraform-provider-*
+
 # OS
 .DS_Store
 Thumbs.db
-
-# Jenkins
-workspace/
