@@ -1,0 +1,113 @@
+pipeline {
+
+  agent none   // 👈 control execution per stage
+
+  environment {
+    AWS_REGION = "us-west-1"
+  }
+
+  stages {
+
+    // -----------------------------
+    // 🔹 BUILD STAGES (agent-1)
+    // -----------------------------
+    stage('Sonar') {
+      agent { label 'agent-1' }
+
+      steps {
+        sh 'mvn clean verify sonar:sonar -Dsonar.projectKey=asgbuggywebapp000 -Dsonar.organization=asgbuggywebapp000 -Dsonar.host.url=https://sonarcloud.io -Dsonar.token=94d0217a5309dac0adc2fd40621c9858cf495261'
+      }
+    }
+
+    stage('Snyk') {
+      agent { label 'agent-1' }
+
+      steps {
+        withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
+          script {
+            def status = sh(script: 'mvn snyk:test', returnStatus: true)
+            if (status != 0) {
+              echo "Snyk found vulnerabilities ⚠️"
+              currentBuild.result = 'UNSTABLE'
+            }
+          }
+        }
+      }
+    }
+
+    stage('Build & Push') {
+      agent { label 'agent-1' }
+
+      steps {
+        script { 
+          def tag = "build-${env.BUILD_NUMBER}"
+          def app = docker.build("jenkins-app-repo:${tag}")
+
+          docker.withRegistry('https://004070549669.dkr.ecr.us-west-1.amazonaws.com', 'ecr:us-west-1:aws-credentials') {
+            app.push(tag)
+          }
+
+          echo "✅ Image pushed: jenkins-app-repo:${tag}"
+        }
+      }
+    }
+
+    // -----------------------------
+    // 🔥 TERRAFORM (agent-2)
+    // -----------------------------
+    stage('Provision EKS via Terraform') {
+
+      agent { label 'agent-2' }
+
+      when {
+        allOf {
+          branch 'feature/*'                   // only feature branch
+          changeset "**/terraform-eks/**"     // only if TF code changed
+        }
+      }
+
+      steps {
+        withCredentials([[
+          $class: 'AmazonWebServicesCredentialsBinding',
+          credentialsId: 'aws-credentials'
+        ]]) {
+
+          dir('terraform-eks/EKS-creation') {
+
+            script {
+
+              // 👇 check if changes exist
+              def status = sh(
+                script: '''
+                  terraform init
+                  terraform plan -detailed-exitcode
+                ''',
+                returnStatus: true
+              )
+
+              if (status == 0) {
+                echo "✅ No changes. EKS already exists."
+              } 
+              else if (status == 2) {
+                echo "⚙️ Changes detected. Applying Terraform..."
+
+                sh '''
+                  terraform apply -auto-approve
+                '''
+
+                // 👇 show outputs
+                sh 'terraform output'
+
+                echo "🚀 EKS provisioned successfully"
+              } 
+              else {
+                error("❌ Terraform plan failed")
+              }
+            }
+          }
+        }
+      }
+    }
+
+  }
+}
