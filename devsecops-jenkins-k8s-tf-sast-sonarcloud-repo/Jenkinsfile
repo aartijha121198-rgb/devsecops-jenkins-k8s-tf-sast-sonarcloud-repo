@@ -61,7 +61,7 @@ pipeline {
 
       when {
         allOf {
-          branch 'feature/*'                   // only feature branch
+          branch 'feature'                   // only feature branch
           changeset "**/terraform-eks/**"     // only if TF code changed
         }
       }
